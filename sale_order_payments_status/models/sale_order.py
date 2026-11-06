@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from collections import defaultdict
+
 from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, UserError
 from odoo.tools import float_compare, float_is_zero
@@ -15,8 +17,12 @@ PAYMENT_STATUS_SELECTION = [
 # Customer documents that carry an amount the customer owes (+) or is owed (-).
 _CUSTOMER_MOVE_SIGN = {'out_invoice': 1, 'out_refund': -1}
 
-# Invoice payment states that still leave something to collect.
-_OPEN_PAYMENT_STATES = ('not_paid', 'partial')
+# Invoice payment states that may still leave something to collect. Since Odoo 18 an
+# 'in_payment' invoice can still be partly open (payment without journal entry).
+_OPEN_PAYMENT_STATES = ('not_paid', 'partial', 'in_payment')
+
+# States of a payment registered without journal entry (Odoo 18) that settle an invoice.
+_PENDING_PAYMENT_STATES = ('in_process', 'paid')
 
 # Every stored field of the related customer documents that can change the figures.
 _MOVE_DEPENDENCIES = [
@@ -29,6 +35,12 @@ _MOVE_DEPENDENCIES = [
     'order_line.invoice_lines.move_id.amount_total_signed',
     'order_line.invoice_lines.move_id.amount_residual_signed',
     'order_line.invoice_lines.move_id.payment_state',
+    # Odoo 18: payments without journal entry are linked through matched_payment_ids
+    'order_line.invoice_lines.move_id.matched_payment_ids',
+    'order_line.invoice_lines.move_id.matched_payment_ids.state',
+    'order_line.invoice_lines.move_id.matched_payment_ids.move_id',
+    'order_line.invoice_lines.move_id.matched_payment_ids.amount',
+    'order_line.invoice_lines.move_id.matched_payment_ids.currency_id',
 ]
 
 
@@ -75,7 +87,7 @@ class SaleOrder(models.Model):
         string='Paid (%)',
         compute='_compute_order_payment_amounts',
         store=True,
-        group_operator='avg',
+        aggregator='avg',
         digits=(16, 2),
     )
     order_payment_status = fields.Selection(
@@ -124,22 +136,79 @@ class SaleOrder(models.Model):
             lambda m: m.state == 'posted' and m.move_type in _CUSTOMER_MOVE_SIGN
         )
 
-    def _get_order_move_amounts(self, move):
+    @api.model
+    def _get_order_pending_payment_amounts(self, moves):
+        """Part of each move settled by payments that have no journal entry yet.
+
+        Odoo 18 (typically Enterprise, when the bank journal has no outstanding account)
+        registers a payment without journal entry: the invoice becomes 'In Payment' but its
+        residual is unchanged until the bank statement is reconciled. Such a payment is
+        spread over the invoices it was registered for, oldest due date first, capped by
+        their residuals.
+
+        :return: {move id: amount covered, in the move currency, unsigned}
+        """
+        payments = moves.matched_payment_ids.filtered(
+            lambda p: not p.move_id and p.state in _PENDING_PAYMENT_STATES
+        )
+        covered = defaultdict(float)
+        if not payments:
+            return covered
+        targets = payments.invoice_ids.filtered(lambda m: m.state == 'posted')
+        remaining = {m.id: abs(m.amount_residual) for m in targets}
+        for payment in payments.sorted(lambda p: (p.date, p.id)):
+            left = payment.amount
+            invoices = payment.invoice_ids.filtered(lambda m: m.id in remaining).sorted(
+                lambda m: (m.invoice_date_due or m.date, m.id))
+            for move in invoices:
+                if payment.currency_id.is_zero(left):
+                    break
+                available = remaining[move.id]
+                if move.currency_id.is_zero(available):
+                    continue
+                left_in_move_currency = payment.currency_id._convert(
+                    left, move.currency_id, move.company_id, payment.date)
+                taken = min(available, left_in_move_currency)
+                covered[move.id] += taken
+                remaining[move.id] -= taken
+                left -= move.currency_id._convert(taken, payment.currency_id, move.company_id, payment.date)
+        return covered
+
+    def _get_order_move_residuals(self, moves):
+        """{move id: amount still to settle, in the move currency, unsigned}."""
+        covered = self._get_order_pending_payment_amounts(moves)
+        return {
+            move.id: max(0.0, move.currency_id.round(abs(move.amount_residual) - covered.get(move.id, 0.0)))
+            for move in moves
+        }
+
+    def _get_order_move_amounts(self, move, residual):
         """Return (total, residual) of ``move`` expressed in the order currency, unsigned.
 
-        Invoices created from an order normally share its currency, in which case the
-        document amounts are used as they are, with no rounding drift. Otherwise the
-        company-currency amounts are converted at the invoice date.
+        ``residual`` is the amount still to settle in the move currency. Invoices created
+        from an order normally share its currency, in which case the document amounts are
+        used as they are, with no rounding drift. Otherwise the company-currency amounts are
+        converted at the invoice date.
         """
         self.ensure_one()
         currency = self.currency_id or self.company_id.currency_id
         if move.currency_id == currency:
-            return abs(move.amount_total), abs(move.amount_residual)
+            return abs(move.amount_total), residual
         date = move.invoice_date or move.date or fields.Date.context_today(self)
         company_currency = move.company_currency_id
         total = company_currency._convert(abs(move.amount_total_signed), currency, move.company_id, date)
-        residual = company_currency._convert(abs(move.amount_residual_signed), currency, move.company_id, date)
-        return total, residual
+        residual_company = self._get_order_residual_company(move, residual)
+        return total, company_currency._convert(residual_company, currency, move.company_id, date)
+
+    @api.model
+    def _get_order_residual_company(self, move, residual):
+        """Unsigned residual of ``move`` in company currency, net of pending payments."""
+        move_residual = abs(move.amount_residual)
+        if move.currency_id.is_zero(move_residual):
+            return 0.0
+        if move.currency_id.compare_amounts(residual, move_residual) == 0:
+            return abs(move.amount_residual_signed)
+        return abs(move.amount_residual_signed) * residual / move_residual
 
     # -------------------------------------------------------------------------
     # Computes
@@ -151,15 +220,15 @@ class SaleOrder(models.Model):
             currency = order.currency_id or order.company_id.currency_id
             company_currency = order.company_id.currency_id
             moves = order._get_order_payment_moves()
+            residuals = order._get_order_move_residuals(moves)
 
             invoiced = due = due_company = 0.0
             for move in moves:
                 sign = _CUSTOMER_MOVE_SIGN[move.move_type]
-                total, residual = order._get_order_move_amounts(move)
+                total, residual = order._get_order_move_amounts(move, residuals[move.id])
                 invoiced += sign * total
                 due += sign * residual
-                # amount_residual_signed is already negative for credit notes
-                due_company += move.amount_residual_signed
+                due_company += sign * order._get_order_residual_company(move, residuals[move.id])
 
             invoiced = currency.round(invoiced)
             due = currency.round(due)
@@ -169,9 +238,7 @@ class SaleOrder(models.Model):
             order.order_amount_due = due
             order.order_paid_amount = paid
             order.order_amount_due_company = company_currency.round(due_company)
-            order.order_open_invoice_count = len(
-                moves.filtered(lambda m: m.payment_state in _OPEN_PAYMENT_STATES)
-            )
+            order.order_open_invoice_count = len(order._get_order_open_moves(moves, residuals))
             if invoiced > 0:
                 order.order_paid_percent = max(0.0, min(100.0, paid / invoiced * 100.0))
             else:
@@ -188,7 +255,8 @@ class SaleOrder(models.Model):
             return 'credited'
         if float_compare(due, 0.0, precision_rounding=rounding) <= 0:
             invoices = moves.filtered(lambda m: m.move_type == 'out_invoice')
-            if any(m.payment_state == 'in_payment' for m in invoices):
+            if any(m.payment_state == 'in_payment' for m in invoices) or any(
+                    p.state == 'in_process' for p in invoices.matched_payment_ids):
                 return 'in_payment'
             return 'paid'
         if float_compare(due, invoiced, precision_rounding=rounding) >= 0:
@@ -200,10 +268,21 @@ class SaleOrder(models.Model):
         for order in self:
             order.order_payment_move_ids = order._get_order_payment_moves()
 
+    @api.model
+    def _get_order_open_moves(self, moves, residuals=None):
+        """Posted invoices / credit notes that still have something to settle."""
+        if residuals is None:
+            residuals = self._get_order_move_residuals(moves)
+        return moves.filtered(
+            lambda m: m.payment_state in _OPEN_PAYMENT_STATES and not m.currency_id.is_zero(residuals[m.id])
+        )
+
     @api.depends(*_MOVE_DEPENDENCIES)
     def _compute_order_payment_ids(self):
         for order in self:
-            payments = order._get_order_payment_moves()._get_reconciled_payments()
+            # Odoo 18: reconciled_payment_ids also holds payments without journal entry
+            payments = order._get_order_payment_moves().reconciled_payment_ids.filtered(
+                lambda p: p.state not in ('draft', 'canceled', 'rejected'))
             order.order_payment_ids = payments
             order.order_payment_count = len(payments)
 
@@ -217,20 +296,19 @@ class SaleOrder(models.Model):
                 'Only accounting users (Billing or above) can register payments '
                 'from a sales order.'
             ))
-        self.env['account.payment'].check_access_rights('create')
+        self.env['account.payment'].check_access('create')
 
     def action_register_order_payment(self):
         """Open the standard Register Payment wizard on the open invoices of the orders."""
         self._check_order_payment_access()
         moves = self._get_order_payment_moves()
-        open_moves = moves.filtered(lambda m: m.payment_state in _OPEN_PAYMENT_STATES)
+        open_moves = self._get_order_open_moves(moves)
         if not open_moves:
             raise UserError(_(
                 'There is nothing left to pay: the selected orders have no posted invoice '
                 'with an amount due.'
             ))
-        open_moves.check_access_rights('write')
-        open_moves.check_access_rule('write')
+        open_moves.check_access('write')
 
         open_invoices = open_moves.filtered(lambda m: m.move_type == 'out_invoice')
         open_refunds = open_moves - open_invoices

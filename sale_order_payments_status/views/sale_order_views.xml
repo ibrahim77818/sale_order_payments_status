@@ -13,7 +13,7 @@
                 <button name="action_register_order_payment" type="object"
                         string="Register Payment" class="btn-secondary"
                         groups="account.group_account_invoice"
-                        attrs="{'invisible': ['|', ('state', 'not in', ('sale', 'done')), ('order_open_invoice_count', '=', 0)]}"/>
+                        invisible="state != 'sale' or order_open_invoice_count == 0"/>
             </xpath>
 
             <!-- Smart button: payments reconciled with the order's invoices -->
@@ -21,7 +21,7 @@
                 <button name="action_view_order_payments" type="object"
                         class="oe_stat_button" icon="fa-money"
                         groups="account.group_account_invoice"
-                        attrs="{'invisible': [('order_payment_count', '=', 0)]}">
+                        invisible="order_payment_count == 0">
                     <field name="order_payment_count" widget="statinfo" string="Payments"/>
                 </button>
             </xpath>
@@ -29,20 +29,20 @@
             <!-- Payment Details tab -->
             <xpath expr="//notebook/page[@name='order_lines']" position="after">
                 <page string="Payment Details" name="payment_details"
-                      attrs="{'invisible': [('state', 'not in', ('sale', 'done'))]}">
+                      invisible="state != 'sale'">
                     <field name="order_payment_company_currency_id" invisible="1"/>
                     <field name="order_open_invoice_count" invisible="1"/>
                     <div class="o_sops_payment_panel">
                         <widget name="web_ribbon" title="Paid" bg_color="bg-success"
-                                attrs="{'invisible': [('order_payment_status', '!=', 'paid')]}"/>
+                                invisible="order_payment_status != 'paid'"/>
                         <widget name="web_ribbon" title="In Payment" bg_color="bg-info"
-                                attrs="{'invisible': [('order_payment_status', '!=', 'in_payment')]}"/>
+                                invisible="order_payment_status != 'in_payment'"/>
                         <widget name="web_ribbon" title="Partially Paid" bg_color="bg-warning"
-                                attrs="{'invisible': [('order_payment_status', '!=', 'partial')]}"/>
+                                invisible="order_payment_status != 'partial'"/>
                         <widget name="web_ribbon" title="Not Paid" bg_color="bg-danger"
-                                attrs="{'invisible': [('order_payment_status', '!=', 'not_paid')]}"/>
+                                invisible="order_payment_status != 'not_paid'"/>
                         <widget name="web_ribbon" title="Fully Credited" bg_color="bg-primary"
-                                attrs="{'invisible': [('order_payment_status', '!=', 'credited')]}"/>
+                                invisible="order_payment_status != 'credited'"/>
 
                         <div class="o_sops_summary">
                             <group>
@@ -70,8 +70,8 @@
                                                 string="Register Payment" class="btn-primary"
                                                 icon="fa-credit-card"
                                                 groups="account.group_account_invoice"
-                                                attrs="{'invisible': [('order_open_invoice_count', '=', 0)]}"/>
-                                        <p class="text-muted mb-0" attrs="{'invisible': [('order_payment_status', '!=', 'no_invoice')]}">
+                                                invisible="order_open_invoice_count == 0"/>
+                                        <p class="text-muted mb-0" invisible="order_payment_status != 'no_invoice'">
                                             No posted invoice yet. Payments can be registered once an invoice is confirmed.
                                         </p>
                                     </div>
@@ -80,16 +80,16 @@
                         </div>
 
                         <separator string="Invoices &amp; Credit Notes"
-                                   attrs="{'invisible': [('order_payment_status', '=', 'no_invoice')]}"/>
+                                   invisible="order_payment_status == 'no_invoice'"/>
                         <field name="order_payment_move_ids" nolabel="1" readonly="1"
-                               attrs="{'invisible': [('order_payment_status', '=', 'no_invoice')]}">
-                            <tree string="Invoices &amp; Credit Notes" create="0" edit="0" delete="0"
+                               invisible="order_payment_status == 'no_invoice'">
+                            <list string="Invoices &amp; Credit Notes" create="0" edit="0" delete="0"
                                   decoration-muted="payment_state in ('paid', 'reversed')">
                                 <field name="name" decoration-bf="1"/>
                                 <field name="move_type" string="Type"/>
                                 <field name="invoice_date" string="Date"/>
                                 <field name="invoice_date_due" string="Due Date"/>
-                                <field name="currency_id" invisible="1"/>
+                                <field name="currency_id" column_invisible="True"/>
                                 <field name="amount_total" string="Total" widget="monetary"
                                        options="{'currency_field': 'currency_id'}"/>
                                 <field name="amount_residual" string="Amount Due" widget="monetary"
@@ -99,7 +99,7 @@
                                        decoration-info="payment_state in ('in_payment', 'reversed')"
                                        decoration-warning="payment_state == 'partial'"
                                        decoration-danger="payment_state == 'not_paid'"/>
-                            </tree>
+                            </list>
                         </field>
                     </div>
                 </page>
@@ -122,7 +122,7 @@
                 <field name="order_invoiced_amount" widget="monetary" optional="hide" sum="Total Invoiced"/>
                 <field name="order_paid_amount" widget="monetary" optional="hide" sum="Total Paid"/>
                 <field name="order_amount_due" widget="monetary" optional="show" sum="Amount Due"/>
-                <field name="order_payment_company_currency_id" invisible="1"/>
+                <field name="order_payment_company_currency_id" column_invisible="True"/>
                 <field name="order_amount_due_company" optional="hide" sum="Amount Due (Company Currency)"
                        widget="monetary" options="{'currency_field': 'order_payment_company_currency_id'}"
                        groups="base.group_multi_currency"/>
