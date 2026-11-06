@@ -2,7 +2,7 @@
 Sales Order Payment Status
 ==========================
 
-Odoo 16.0 (Community & Enterprise). Depends on ``sale`` and ``account``.
+Odoo 17.0 (Community & Enterprise). Depends on ``sale`` and ``account``.
 
 What it adds
 ============
@@ -57,6 +57,8 @@ Accounting controls
 * If an invoice and a credit note of the order are both still open, registration is
   refused until the credit note is reconciled with the invoice (*Outstanding credits*
   on the invoice), so the customer is never asked for more than the amount due.
+  In Odoo 17 a credit note made with *Reverse* is reconciled with its invoice when
+  posted, so this mainly concerns credit notes entered by hand.
 
 Tests
 =====

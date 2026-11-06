@@ -73,18 +73,50 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         wizard = self.env['account.payment.register'].with_context(**action['context']).create(vals)
         return wizard._create_payments()
 
+    def _action_moves(self, action):
+        """Invoices targeted by a Register Payment action.
+
+        Odoo 17 passes the journal items (active_model account.move.line) to the wizard,
+        Odoo 16 passed the invoices themselves.
+        """
+        ctx = action['context']
+        records = self.env[ctx['active_model']].browse(ctx['active_ids'])
+        return records.move_id if ctx['active_model'] == 'account.move.line' else records
+
+    def _manual_credit_note(self, order, quantity, price=100.0):
+        """A credit note created by hand (not through Reverse), linked to the order line."""
+        line = order.order_line[0]
+        refund = self.env['account.move'].create({
+            'move_type': 'out_refund',
+            'partner_id': order.partner_id.id,
+            'invoice_date': fields.Date.today(),
+            'currency_id': order.currency_id.id,
+            'invoice_line_ids': [Command.create({
+                'product_id': line.product_id.id,
+                'quantity': quantity,
+                'price_unit': price,
+                'tax_ids': [Command.clear()],
+                'sale_line_ids': [Command.set(line.ids)],
+            })],
+        })
+        refund.action_post()
+        return refund
+
     def _refund(self, invoice, quantity=None, cancel=False):
+        # Odoo 17: the wizard has no refund_method any more. "Reverse" (refund_moves) creates
+        # a draft credit note; "Reverse and Create Invoice" (modify_moves) posts a credit note
+        # reconciled with the invoice and opens a new draft copy of it.
         reversal = self.env['account.move.reversal'].with_context(
             active_model='account.move', active_ids=invoice.ids,
         ).create({
             'reason': 'Test credit note',
-            'refund_method': 'cancel' if cancel else 'refund',
             'journal_id': invoice.journal_id.id,
         })
-        res = reversal.reverse_moves()
-        refund = self.env['account.move'].browse(res['res_id']) if res.get('res_id') else invoice.reversal_move_id
         if cancel:
-            return refund
+            reversal.modify_moves()
+            return invoice.reversal_move_id
+        reversal.refund_moves()
+        refund = invoice.reversal_move_id
         if quantity is not None:
             line = refund.invoice_line_ids[0]
             refund.write({'invoice_line_ids': [Command.update(line.id, {'quantity': quantity})]})
@@ -196,7 +228,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
 
         # The order button now targets only the remaining invoice
         action = order.action_register_order_payment()
-        self.assertEqual(action['context']['active_ids'], invoice_2.ids)
+        self.assertEqual(self._action_moves(action), invoice_2)
         self._pay(order)
         self.assertAmounts(order, 1000.0, 1000.0, 0.0, self._fully_paid_status(invoice_1 | invoice_2))
 
@@ -225,7 +257,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         action = self.env.ref('sale_order_payments_status.action_server_register_order_payment').with_context(
             active_model='sale.order', active_ids=(order_1 | order_2).ids,
         ).run()
-        self.assertEqual(sorted(action['context']['active_ids']), sorted(invoices.ids))
+        self.assertEqual(self._action_moves(action), invoices)
         self.env['account.payment.register'].with_context(**action['context']).create({
             'journal_id': self.bank_journal.id,
             'group_payment': True,
@@ -238,17 +270,34 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
     # ------------------------------------------------------------------
 
     def test_20_partial_credit_note(self):
+        """Odoo 17: a credit note made with Reverse is reconciled with its invoice on posting."""
         order = self._create_order()
         invoice = self._invoice(order)
         refund = self._refund(invoice, quantity=3)
         self.assertEqual(refund.amount_total, 300.0)
         self.assertIn(refund, order.order_payment_move_ids)
-        # Open credit note: net invoiced and net due are both 700
+        self.assertEqual(refund.payment_state, 'paid')
+        self.assertEqual(invoice.payment_state, 'partial')
+        self.assertEqual(invoice.amount_residual, 700.0)
+        # Net invoiced and net due are both 700; the credit is not a payment
         self.assertAmounts(order, 700.0, 0.0, 700.0, 'not_paid')
-        self.assertEqual(order.order_open_invoice_count, 2)
+        self.assertEqual(order.order_open_invoice_count, 1)
         self.assertEqual(order.order_amount_due_company, 700.0)
 
-        # Accounting control: the customer must not be asked for 1000
+        action = order.action_register_order_payment()
+        self.assertEqual(self._action_moves(action), invoice)
+        self._pay(order)
+        self.assertAmounts(order, 700.0, 700.0, 0.0, self._fully_paid_status(invoice))
+
+    def test_23_open_manual_credit_note_blocks_payment(self):
+        """A credit note created by hand stays open: the customer must not be charged 1000."""
+        order = self._create_order()
+        invoice = self._invoice(order)
+        refund = self._manual_credit_note(order, quantity=3)
+        self.assertEqual(refund.payment_state, 'not_paid')
+        self.assertAmounts(order, 700.0, 0.0, 700.0, 'not_paid')
+        self.assertEqual(order.order_open_invoice_count, 2)
+
         with self.assertRaises(UserError):
             order.action_register_order_payment()
 
@@ -266,6 +315,8 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         invoice = self._invoice(order)
         self._refund(invoice, cancel=True)
         self.assertEqual(invoice.payment_state, 'reversed')
+        # "Reverse and Create Invoice" leaves a new draft invoice on the order: it must be ignored
+        self.assertIn('draft', order.invoice_ids.mapped('state'))
         self.assertAmounts(order, 0.0, 0.0, 0.0, 'credited')
         self.assertEqual(order.order_paid_percent, 0.0)
         self.assertEqual(order.order_open_invoice_count, 0)
@@ -281,7 +332,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         # Only the credit note is open: registering pays the customer back
         action = order.action_register_order_payment()
         refund = order.order_payment_move_ids.filtered(lambda m: m.move_type == 'out_refund')
-        self.assertEqual(action['context']['active_ids'], refund.ids)
+        self.assertEqual(self._action_moves(action), refund)
 
     # ------------------------------------------------------------------
     # Multi-currency precision

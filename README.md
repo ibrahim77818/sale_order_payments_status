@@ -1,4 +1,4 @@
-# Sales Order Payment Status (Odoo 16.0)
+# Sales Order Payment Status (Odoo 17.0)
 
 See on every sales order whether the customer has paid, paid part, or paid nothing, with the
 exact amount still due, and register the payment from the order itself.
@@ -17,7 +17,7 @@ Each branch holds the code for one Odoo version:
 | `18.0` | 18.0 | 18.0.1.0.0 |
 | `19.0` | 19.0 | 19.0.1.0.0 |
 
-This branch: **16.0** (`sale_order_payments_status` 16.0.1.0.0).
+This branch: **17.0** (`sale_order_payments_status` 17.0.1.0.0).
 
 Depends on `sale` and `account`.
 
@@ -44,6 +44,10 @@ Depends on `sale` and `account`.
 Total Invoiced = invoices − credit notes · Amount Due = invoice residuals − credit-note
 residuals · Total Paid = Total Invoiced − Amount Due.
 
+## Notes for Odoo 17.0
+
+- Since Odoo 17, a credit note created with **Reverse** is reconciled with its invoice when posted, so the open-credit-note block mainly concerns credit notes entered by hand.
+
 ## Installation
 
 1. Put the `sale_order_payments_status` folder in your addons path (on Odoo.sh, push this
@@ -55,7 +59,7 @@ residuals · Total Paid = Total Invoiced − Amount Due.
 
 ## Tests
 
-16 automated `TransactionCase` tests:
+17 automated `TransactionCase` tests:
 
 ```
 odoo-bin -d <db> -i sale_order_payments_status --test-tags /sale_order_payments_status
@@ -63,4 +67,4 @@ odoo-bin -d <db> -i sale_order_payments_status --test-tags /sale_order_payments_
 
 ## Other versions
 
-`17.0`, `18.0`, `19.0`
+`16.0`, `18.0`, `19.0`
