@@ -1,0 +1,32 @@
+// Payment Details tab of the sales order form.
+// Physical left/right properties are mirrored automatically by Odoo's RTL
+// (rtlcss) build of the backend assets, together with the ribbon itself.
+
+.o_sops_payment_panel {
+    position: relative;
+    min-height: 150px;
+
+    // Keep the summary clear of the corner ribbon.
+    > .o_sops_summary {
+        padding-right: 120px;
+    }
+
+    .o_sops_actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .o_field_progressbar {
+        width: 100%;
+    }
+}
+
+@include media-breakpoint-down(md) {
+    .o_sops_payment_panel > .o_sops_summary {
+        padding-right: 0;
+        padding-top: 70px;
+    }
+}

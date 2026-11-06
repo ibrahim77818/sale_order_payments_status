@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ===================== Sales order form ===================== -->
+    <record id="view_order_form_payment_status" model="ir.ui.view">
+        <field name="name">sale.order.form.payment.status</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Header: Register Payment next to Create Invoice -->
+            <xpath expr="//header/field[@name='state']" position="before">
+                <button name="action_register_order_payment" type="object"
+                        string="Register Payment" class="btn-secondary"
+                        groups="account.group_account_invoice"
+                        attrs="{'invisible': ['|', ('state', 'not in', ('sale', 'done')), ('order_open_invoice_count', '=', 0)]}"/>
+            </xpath>
+
+            <!-- Smart button: payments reconciled with the order's invoices -->
+            <xpath expr="//div[@name='button_box']/button[@name='action_view_invoice']" position="after">
+                <button name="action_view_order_payments" type="object"
+                        class="oe_stat_button" icon="fa-money"
+                        groups="account.group_account_invoice"
+                        attrs="{'invisible': [('order_payment_count', '=', 0)]}">
+                    <field name="order_payment_count" widget="statinfo" string="Payments"/>
+                </button>
+            </xpath>
+
+            <!-- Payment Details tab -->
+            <xpath expr="//notebook/page[@name='order_lines']" position="after">
+                <page string="Payment Details" name="payment_details"
+                      attrs="{'invisible': [('state', 'not in', ('sale', 'done'))]}">
+                    <field name="order_payment_company_currency_id" invisible="1"/>
+                    <field name="order_open_invoice_count" invisible="1"/>
+                    <div class="o_sops_payment_panel">
+                        <widget name="web_ribbon" title="Paid" bg_color="bg-success"
+                                attrs="{'invisible': [('order_payment_status', '!=', 'paid')]}"/>
+                        <widget name="web_ribbon" title="In Payment" bg_color="bg-info"
+                                attrs="{'invisible': [('order_payment_status', '!=', 'in_payment')]}"/>
+                        <widget name="web_ribbon" title="Partially Paid" bg_color="bg-warning"
+                                attrs="{'invisible': [('order_payment_status', '!=', 'partial')]}"/>
+                        <widget name="web_ribbon" title="Not Paid" bg_color="bg-danger"
+                                attrs="{'invisible': [('order_payment_status', '!=', 'not_paid')]}"/>
+                        <widget name="web_ribbon" title="Fully Credited" bg_color="bg-primary"
+                                attrs="{'invisible': [('order_payment_status', '!=', 'credited')]}"/>
+
+                        <div class="o_sops_summary">
+                            <group>
+                                <group string="Payment Summary" name="payment_summary">
+                                    <field name="order_payment_status" widget="badge"
+                                           decoration-success="order_payment_status == 'paid'"
+                                           decoration-info="order_payment_status in ('in_payment', 'credited')"
+                                           decoration-warning="order_payment_status == 'partial'"
+                                           decoration-danger="order_payment_status == 'not_paid'"/>
+                                    <field name="order_invoiced_amount" widget="monetary"
+                                           options="{'currency_field': 'currency_id'}"/>
+                                    <field name="order_paid_amount" widget="monetary"
+                                           options="{'currency_field': 'currency_id'}"/>
+                                    <field name="order_amount_due" widget="monetary" class="fw-bold"
+                                           options="{'currency_field': 'currency_id'}"
+                                           decoration-danger="order_amount_due &gt; 0"/>
+                                    <field name="order_amount_due_company" widget="monetary"
+                                           groups="base.group_multi_currency"
+                                           options="{'currency_field': 'order_payment_company_currency_id'}"/>
+                                </group>
+                                <group string="Progress" name="payment_progress">
+                                    <field name="order_paid_percent" widget="progressbar" nolabel="1" colspan="2"/>
+                                    <div colspan="2" class="o_sops_actions">
+                                        <button name="action_register_order_payment" type="object"
+                                                string="Register Payment" class="btn-primary"
+                                                icon="fa-credit-card"
+                                                groups="account.group_account_invoice"
+                                                attrs="{'invisible': [('order_open_invoice_count', '=', 0)]}"/>
+                                        <p class="text-muted mb-0" attrs="{'invisible': [('order_payment_status', '!=', 'no_invoice')]}">
+                                            No posted invoice yet. Payments can be registered once an invoice is confirmed.
+                                        </p>
+                                    </div>
+                                </group>
+                            </group>
+                        </div>
+
+                        <separator string="Invoices &amp; Credit Notes"
+                                   attrs="{'invisible': [('order_payment_status', '=', 'no_invoice')]}"/>
+                        <field name="order_payment_move_ids" nolabel="1" readonly="1"
+                               attrs="{'invisible': [('order_payment_status', '=', 'no_invoice')]}">
+                            <tree string="Invoices &amp; Credit Notes" create="0" edit="0" delete="0"
+                                  decoration-muted="payment_state in ('paid', 'reversed')">
+                                <field name="name" decoration-bf="1"/>
+                                <field name="move_type" string="Type"/>
+                                <field name="invoice_date" string="Date"/>
+                                <field name="invoice_date_due" string="Due Date"/>
+                                <field name="currency_id" invisible="1"/>
+                                <field name="amount_total" string="Total" widget="monetary"
+                                       options="{'currency_field': 'currency_id'}"/>
+                                <field name="amount_residual" string="Amount Due" widget="monetary"
+                                       options="{'currency_field': 'currency_id'}"/>
+                                <field name="payment_state" string="Payment" widget="badge"
+                                       decoration-success="payment_state == 'paid'"
+                                       decoration-info="payment_state in ('in_payment', 'reversed')"
+                                       decoration-warning="payment_state == 'partial'"
+                                       decoration-danger="payment_state == 'not_paid'"/>
+                            </tree>
+                        </field>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ===================== Sales order lists ===================== -->
+    <record id="view_order_tree_payment_status" model="ir.ui.view">
+        <field name="name">sale.order.tree.payment.status</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='invoice_status']" position="after">
+                <field name="order_payment_status" widget="badge" optional="show"
+                       decoration-success="order_payment_status == 'paid'"
+                       decoration-info="order_payment_status in ('in_payment', 'credited')"
+                       decoration-warning="order_payment_status == 'partial'"
+                       decoration-danger="order_payment_status == 'not_paid'"/>
+                <field name="order_invoiced_amount" widget="monetary" optional="hide" sum="Total Invoiced"/>
+                <field name="order_paid_amount" widget="monetary" optional="hide" sum="Total Paid"/>
+                <field name="order_amount_due" widget="monetary" optional="show" sum="Amount Due"/>
+                <field name="order_payment_company_currency_id" invisible="1"/>
+                <field name="order_amount_due_company" optional="hide" sum="Amount Due (Company Currency)"
+                       widget="monetary" options="{'currency_field': 'order_payment_company_currency_id'}"
+                       groups="base.group_multi_currency"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_quotation_tree_payment_status" model="ir.ui.view">
+        <field name="name">sale.order.quotation.tree.payment.status</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_quotation_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='invoice_status']" position="after">
+                <field name="order_payment_status" widget="badge" optional="hide"
+                       decoration-success="order_payment_status == 'paid'"
+                       decoration-info="order_payment_status in ('in_payment', 'credited')"
+                       decoration-warning="order_payment_status == 'partial'"
+                       decoration-danger="order_payment_status == 'not_paid'"/>
+                <field name="order_amount_due" widget="monetary" optional="hide" sum="Amount Due"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ===================== Search ===================== -->
+    <record id="view_sales_order_filter_payment_status" model="ir.ui.view">
+        <field name="name">sale.order.search.payment.status</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='activities_upcoming_all']" position="after">
+                <separator/>
+                <filter string="Not Paid" name="payment_not_paid"
+                        domain="[('order_payment_status', '=', 'not_paid')]"/>
+                <filter string="Partially Paid" name="payment_partial"
+                        domain="[('order_payment_status', '=', 'partial')]"/>
+                <filter string="In Payment" name="payment_in_payment"
+                        domain="[('order_payment_status', '=', 'in_payment')]"/>
+                <filter string="Paid" name="payment_paid"
+                        domain="[('order_payment_status', '=', 'paid')]"/>
+                <filter string="With Amount Due" name="payment_amount_due"
+                        domain="[('order_amount_due', '&gt;', 0)]"/>
+            </xpath>
+            <xpath expr="//group/filter[@name='order_month']" position="after">
+                <filter string="Payment Status" name="group_payment_status" domain="[]"
+                        context="{'group_by': 'order_payment_status'}"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

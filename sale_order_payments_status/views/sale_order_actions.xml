@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- "Register Payment" in the Action menu of the sales order list/form (accounting users only) -->
+    <record id="action_server_register_order_payment" model="ir.actions.server">
+        <field name="name">Register Payment</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('account.group_account_invoice'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_register_order_payment()</field>
+    </record>
+</odoo>
