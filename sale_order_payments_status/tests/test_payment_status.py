@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from contextlib import contextmanager
 from unittest.mock import patch
 
 from odoo import Command, fields
@@ -12,11 +13,17 @@ from odoo.tools import float_compare
 class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
 
     @classmethod
-    def setUpClass(cls, chart_template_ref=None):
-        super().setUpClass(chart_template_ref=chart_template_ref)
+    def get_default_groups(cls):
+        # Odoo 19: tests run as an isolated user that only gets these groups
+        return super().get_default_groups() | cls.quick_ref('sales_team.group_sale_manager')
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         cls.company = cls.company_data['company']
         cls.bank_journal = cls.company_data['default_journal_bank']
-        cls.gold = cls.currency_data['currency']   # rounding 0.001, rate 2.0 since 2017
+        # Odoo 18: currency_data is gone. 3 decimals, rate 2.0 since 2017.
+        cls.gold = cls.setup_other_currency('EUR', rounding=0.001)
 
         cls.product = cls.env['product.product'].create({
             'name': 'Consulting Day',
@@ -46,7 +53,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
                 'product_id': self.product.id,
                 'product_uom_qty': qty,
                 'price_unit': price,
-                'tax_id': [Command.clear()],
+                'tax_ids': [Command.clear()],
             }) for qty, price in lines],
         })
         if confirm:
@@ -73,18 +80,50 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         wizard = self.env['account.payment.register'].with_context(**action['context']).create(vals)
         return wizard._create_payments()
 
+    def _action_moves(self, action):
+        """Invoices targeted by a Register Payment action.
+
+        Odoo 17 passes the journal items (active_model account.move.line) to the wizard,
+        Odoo 16 passed the invoices themselves.
+        """
+        ctx = action['context']
+        records = self.env[ctx['active_model']].browse(ctx['active_ids'])
+        return records.move_id if ctx['active_model'] == 'account.move.line' else records
+
+    def _manual_credit_note(self, order, quantity, price=100.0):
+        """A credit note created by hand (not through Reverse), linked to the order line."""
+        line = order.order_line[0]
+        refund = self.env['account.move'].create({
+            'move_type': 'out_refund',
+            'partner_id': order.partner_id.id,
+            'invoice_date': fields.Date.today(),
+            'currency_id': order.currency_id.id,
+            'invoice_line_ids': [Command.create({
+                'product_id': line.product_id.id,
+                'quantity': quantity,
+                'price_unit': price,
+                'tax_ids': [Command.clear()],
+                'sale_line_ids': [Command.set(line.ids)],
+            })],
+        })
+        refund.action_post()
+        return refund
+
     def _refund(self, invoice, quantity=None, cancel=False):
+        # Odoo 17: the wizard has no refund_method any more. "Reverse" (refund_moves) creates
+        # a draft credit note; "Reverse and Create Invoice" (modify_moves) posts a credit note
+        # reconciled with the invoice and opens a new draft copy of it.
         reversal = self.env['account.move.reversal'].with_context(
             active_model='account.move', active_ids=invoice.ids,
         ).create({
             'reason': 'Test credit note',
-            'refund_method': 'cancel' if cancel else 'refund',
             'journal_id': invoice.journal_id.id,
         })
-        res = reversal.reverse_moves()
-        refund = self.env['account.move'].browse(res['res_id']) if res.get('res_id') else invoice.reversal_move_id
         if cancel:
-            return refund
+            reversal.modify_moves()
+            return invoice.reversal_move_ids[-1:]
+        reversal.refund_moves()
+        refund = invoice.reversal_move_ids[-1:]
         if quantity is not None:
             line = refund.invoice_line_ids[0]
             refund.write({'invoice_line_ids': [Command.update(line.id, {'quantity': quantity})]})
@@ -101,6 +140,21 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
                 '%s: expected %s, got %s' % (field, expected, order[field]),
             )
         self.assertEqual(order.order_payment_status, status)
+
+    @contextmanager
+    def _payments_without_journal_entry(self):
+        """Odoo 18 Enterprise default: the bank journal has no outstanding account, so a
+        registered payment gets no journal entry until the bank statement is reconciled."""
+        lines = self.bank_journal.inbound_payment_method_line_ids
+        accounts = {line: line.payment_account_id for line in lines}
+        lines.payment_account_id = False
+        with patch.object(type(self.env['account.move']), '_get_invoice_in_payment_state',
+                          lambda move: 'in_payment'), \
+                patch.object(type(self.env['account.payment']), '_get_outstanding_account',
+                             lambda payment, payment_type: self.env['account.account']):
+            yield
+        for line, account in accounts.items():
+            line.payment_account_id = account
 
     def _fully_paid_status(self, invoices):
         # Community returns 'paid'; Enterprise (account_accountant) returns 'in_payment'
@@ -159,15 +213,83 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
             self.assertEqual(invoice.payment_state, 'in_payment')
             self.assertAmounts(order, 1000.0, 1000.0, 0.0, 'in_payment')
 
-    def test_05_payment_unreconciled_updates_order(self):
+    def test_06_partial_payment_without_journal_entry(self):
+        """Odoo 18: the invoice turns 'In Payment' but keeps its residual; the order must
+        still show what was really paid."""
+        order = self._create_order()
+        invoice = self._invoice(order)
+        with self._payments_without_journal_entry():
+            payment = self._pay(order, amount=400.0)
+            self.assertFalse(payment.move_id)
+            self.assertEqual(payment.state, 'in_process')
+            self.assertEqual(invoice.payment_state, 'in_payment')
+            self.assertEqual(invoice.amount_residual, 1000.0)
+            self.assertAmounts(order, 1000.0, 400.0, 600.0, 'partial')
+            self.assertEqual(order.order_open_invoice_count, 1)
+            self.assertEqual(order.order_amount_due_company, 600.0)
+            self.assertEqual(order.order_payment_ids, payment)
+
+            # The rest can still be registered from the order
+            action = order.action_register_order_payment()
+            self.assertEqual(self._action_moves(action), invoice)
+            self._pay(order, amount=600.0)
+            self.assertAmounts(order, 1000.0, 1000.0, 0.0, 'in_payment')
+            self.assertEqual(order.order_open_invoice_count, 0)
+            self.assertEqual(order.order_payment_count, 2)
+            with self.assertRaises(UserError):
+                order.action_register_order_payment()
+
+    def test_07_grouped_payment_without_journal_entry(self):
+        """One payment without journal entry for two orders is spread oldest invoice first."""
+        order_1 = self._create_order(lines=((1, 100.0),))
+        order_2 = self._create_order(lines=((1, 250.0),))
+        invoices = self._invoice(order_1) | self._invoice(order_2)
+        with self._payments_without_journal_entry():
+            action = (order_1 | order_2).action_register_order_payment()
+            self.env['account.payment.register'].with_context(**action['context']).create({
+                'journal_id': self.bank_journal.id,
+                'group_payment': True,
+                'amount': 200.0,
+            })._create_payments()
+            self.assertEqual(set(invoices.mapped('payment_state')), {'in_payment'})
+            self.assertAmounts(order_1, 100.0, 100.0, 0.0, 'in_payment')
+            self.assertAmounts(order_2, 250.0, 100.0, 150.0, 'partial')
+
+    def test_08_cancelled_payment_without_journal_entry(self):
         order = self._create_order()
         self._invoice(order)
+        with self._payments_without_journal_entry():
+            payment = self._pay(order, amount=300.0)
+            self.assertAmounts(order, 1000.0, 300.0, 700.0, 'partial')
+            payment.action_cancel()
+            self.assertAmounts(order, 1000.0, 0.0, 1000.0, 'not_paid')
+            self.assertFalse(order.order_payment_ids)
+
+    def test_05_payment_unreconciled_updates_order(self):
+        order = self._create_order()
+        invoice = self._invoice(order)
         payment = self._pay(order, amount=250.0)
         self.assertAmounts(order, 1000.0, 250.0, 750.0, 'partial')
+
+        # Odoo 19: resetting a payment to draft keeps its reconciliation; the order follows
+        # the invoice, which still shows 750 due.
         payment.action_draft()
-        self.assertAmounts(order, 1000.0, 0.0, 1000.0, 'not_paid')
+        self.assertEqual(invoice.amount_residual, 750.0)
+        self.assertAmounts(order, 1000.0, 250.0, 750.0, 'partial')
         payment.action_post()
-        self.assertAmounts(order, 1000.0, 0.0, 1000.0, 'not_paid')  # posted but not reconciled
+        self.assertAmounts(order, 1000.0, 250.0, 750.0, 'partial')
+
+        # Cancelling the payment removes the reconciliation
+        payment.action_cancel()
+        self.assertEqual(invoice.payment_state, 'not_paid')
+        self.assertAmounts(order, 1000.0, 0.0, 1000.0, 'not_paid')
+
+        # Unreconciling a payment from the invoice does the same
+        payment = self._pay(order, amount=300.0)
+        self.assertAmounts(order, 1000.0, 300.0, 700.0, 'partial')
+        receivable = payment.move_id.line_ids.filtered(lambda l: l.account_id.account_type == 'asset_receivable')
+        receivable.remove_move_reconcile()
+        self.assertAmounts(order, 1000.0, 0.0, 1000.0, 'not_paid')
 
     # ------------------------------------------------------------------
     # Several invoices per order
@@ -180,7 +302,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
             'product_id': self.product.id,
             'product_uom_qty': 1,
             'price_unit': 700.0,
-            'tax_id': [Command.clear()],
+            'tax_ids': [Command.clear()],
         })]})
         invoice_2 = self._invoice(order)
         self.assertEqual(order.order_payment_move_ids, invoice_1 | invoice_2)
@@ -196,7 +318,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
 
         # The order button now targets only the remaining invoice
         action = order.action_register_order_payment()
-        self.assertEqual(action['context']['active_ids'], invoice_2.ids)
+        self.assertEqual(self._action_moves(action), invoice_2)
         self._pay(order)
         self.assertAmounts(order, 1000.0, 1000.0, 0.0, self._fully_paid_status(invoice_1 | invoice_2))
 
@@ -225,7 +347,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         action = self.env.ref('sale_order_payments_status.action_server_register_order_payment').with_context(
             active_model='sale.order', active_ids=(order_1 | order_2).ids,
         ).run()
-        self.assertEqual(sorted(action['context']['active_ids']), sorted(invoices.ids))
+        self.assertEqual(self._action_moves(action), invoices)
         self.env['account.payment.register'].with_context(**action['context']).create({
             'journal_id': self.bank_journal.id,
             'group_payment': True,
@@ -238,17 +360,34 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
     # ------------------------------------------------------------------
 
     def test_20_partial_credit_note(self):
+        """Odoo 17: a credit note made with Reverse is reconciled with its invoice on posting."""
         order = self._create_order()
         invoice = self._invoice(order)
         refund = self._refund(invoice, quantity=3)
         self.assertEqual(refund.amount_total, 300.0)
         self.assertIn(refund, order.order_payment_move_ids)
-        # Open credit note: net invoiced and net due are both 700
+        self.assertEqual(refund.payment_state, 'paid')
+        self.assertEqual(invoice.payment_state, 'partial')
+        self.assertEqual(invoice.amount_residual, 700.0)
+        # Net invoiced and net due are both 700; the credit is not a payment
         self.assertAmounts(order, 700.0, 0.0, 700.0, 'not_paid')
-        self.assertEqual(order.order_open_invoice_count, 2)
+        self.assertEqual(order.order_open_invoice_count, 1)
         self.assertEqual(order.order_amount_due_company, 700.0)
 
-        # Accounting control: the customer must not be asked for 1000
+        action = order.action_register_order_payment()
+        self.assertEqual(self._action_moves(action), invoice)
+        self._pay(order)
+        self.assertAmounts(order, 700.0, 700.0, 0.0, self._fully_paid_status(invoice))
+
+    def test_23_open_manual_credit_note_blocks_payment(self):
+        """A credit note created by hand stays open: the customer must not be charged 1000."""
+        order = self._create_order()
+        invoice = self._invoice(order)
+        refund = self._manual_credit_note(order, quantity=3)
+        self.assertEqual(refund.payment_state, 'not_paid')
+        self.assertAmounts(order, 700.0, 0.0, 700.0, 'not_paid')
+        self.assertEqual(order.order_open_invoice_count, 2)
+
         with self.assertRaises(UserError):
             order.action_register_order_payment()
 
@@ -266,6 +405,8 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         invoice = self._invoice(order)
         self._refund(invoice, cancel=True)
         self.assertEqual(invoice.payment_state, 'reversed')
+        # "Reverse and Create Invoice" leaves a new draft invoice on the order: it must be ignored
+        self.assertIn('draft', order.invoice_ids.mapped('state'))
         self.assertAmounts(order, 0.0, 0.0, 0.0, 'credited')
         self.assertEqual(order.order_paid_percent, 0.0)
         self.assertEqual(order.order_open_invoice_count, 0)
@@ -281,7 +422,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         # Only the credit note is open: registering pays the customer back
         action = order.action_register_order_payment()
         refund = order.order_payment_move_ids.filtered(lambda m: m.move_type == 'out_refund')
-        self.assertEqual(action['context']['active_ids'], refund.ids)
+        self.assertEqual(self._action_moves(action), refund)
 
     # ------------------------------------------------------------------
     # Multi-currency precision
@@ -345,7 +486,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
             'login': 'sops_salesman',
             'company_id': self.company.id,
             'company_ids': [Command.set(self.company.ids)],
-            'groups_id': [Command.set(self.env.ref('sales_team.group_sale_salesman_all_leads').ids)],
+            'group_ids': [Command.set(self.env.ref('sales_team.group_sale_salesman_all_leads').ids)],
         })
         order_as_salesman = order.with_user(salesman)
         # Sales users still see the figures...
@@ -360,7 +501,7 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
             'login': 'sops_billing',
             'company_id': self.company.id,
             'company_ids': [Command.set(self.company.ids)],
-            'groups_id': [Command.set([
+            'group_ids': [Command.set([
                 self.env.ref('sales_team.group_sale_salesman_all_leads').id,
                 self.env.ref('account.group_account_invoice').id,
             ])],
@@ -382,8 +523,9 @@ class TestSaleOrderPaymentStatus(AccountTestInvoicingCommon):
         domain = [('id', 'in', orders.ids)]
         self.assertEqual(
             self.env['sale.order'].search(domain + [('order_amount_due', '>', 0)]), order_open)
-        groups = self.env['sale.order'].read_group(domain, ['order_amount_due:sum'], ['order_payment_status'])
-        by_status = {g['order_payment_status']: g['order_amount_due'] for g in groups}
+        # Odoo 19: read_group is deprecated; _read_group returns (group, aggregate) tuples
+        groups = self.env['sale.order']._read_group(domain, ['order_payment_status'], ['order_amount_due:sum'])
+        by_status = dict(groups)
         self.assertEqual(by_status['not_paid'], 100.0)
 
     # ------------------------------------------------------------------

@@ -4,10 +4,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 16.0\n"
+"Project-Id-Version: Odoo Server 19.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-04 21:41+0000\n"
-"PO-Revision-Date: 2026-11-04 21:41+0000\n"
+"POT-Creation-Date: 2026-11-06 12:33+0000\n"
+"PO-Revision-Date: 2026-11-06 12:33+0000\n"
 "Last-Translator: \n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -66,6 +66,11 @@ msgid "Date"
 msgstr ""
 
 #. module: sale_order_payments_status
+#: model:ir.model.fields,field_description:sale_order_payments_status.field_sale_order__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: sale_order_payments_status
 #: model_terms:ir.ui.view,arch_db:sale_order_payments_status.view_order_form_payment_status
 msgid "Due Date"
 msgstr ""
@@ -74,6 +79,11 @@ msgstr ""
 #: model:ir.model.fields.selection,name:sale_order_payments_status.selection__sale_order__order_payment_status__credited
 #: model_terms:ir.ui.view,arch_db:sale_order_payments_status.view_order_form_payment_status
 msgid "Fully Credited"
+msgstr ""
+
+#. module: sale_order_payments_status
+#: model:ir.model.fields,field_description:sale_order_payments_status.field_sale_order__id
+msgid "ID"
 msgstr ""
 
 #. module: sale_order_payments_status
@@ -117,7 +127,6 @@ msgstr ""
 #. module: sale_order_payments_status
 #. odoo-python
 #: code:addons/sale_order_payments_status/models/sale_order.py:0
-#, python-format
 msgid ""
 "Only accounting users (Billing or above) can register payments from a sales "
 "order."
@@ -212,7 +221,6 @@ msgstr ""
 #. module: sale_order_payments_status
 #. odoo-python
 #: code:addons/sale_order_payments_status/models/sale_order.py:0
-#, python-format
 msgid ""
 "The credit note(s) %(refunds)s are not yet reconciled with an invoice.\n"
 "Open the invoice %(invoices)s and add the outstanding credit before registering a payment, so the customer is not charged more than the amount due."
@@ -221,7 +229,6 @@ msgstr ""
 #. module: sale_order_payments_status
 #. odoo-python
 #: code:addons/sale_order_payments_status/models/sale_order.py:0
-#, python-format
 msgid ""
 "There is nothing left to pay: the selected orders have no posted invoice "
 "with an amount due."

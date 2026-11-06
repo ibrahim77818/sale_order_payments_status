@@ -1,4 +1,4 @@
-<!-- Odoo Apps description page for sale_order_payments_status (Odoo 16.0). Inline styles only: apps.odoo.com strips <style> and <script> blocks. -->
+<!-- Odoo Apps description page for sale_order_payments_status (Odoo 19.0). Inline styles only: apps.odoo.com strips <style> and <script> blocks. -->
 <section style="max-width:1120px;margin:0 auto;padding:0 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#2b2b33;">
 
 <!-- ============================== HERO ============================== -->
@@ -7,9 +7,9 @@
   <h1 style="font-size:40px;line-height:1.15;font-weight:700;margin:0 0 14px;color:#ffffff;">Sales Order Payment Status</h1>
   <p style="font-size:19px;line-height:1.55;max-width:760px;margin:0 0 24px;color:#ffffff;opacity:.95;">See on every sales order whether the customer has paid, paid part, or paid nothing &ndash; with the exact amount still due. Register the payment from the order itself, without hunting for its invoices.</p>
   <div>
-    <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">Odoo 16.0</span>
+    <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">Odoo 19.0</span>
     <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">Community &amp; Enterprise</span>
-    <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">16 automated tests</span>
+    <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">20 automated tests</span>
     <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">Arabic (ar_001) &amp; RTL</span>
     <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">Technical name: sale_order_payments_status</span>
     <span style="display:inline-block;border:1px solid rgba(255,255,255,.7);border-radius:20px;padding:6px 14px;margin:0 8px 8px 0;font-size:14px;">LGPL-3</span>
@@ -29,7 +29,7 @@
 <p style="font-size:16px;color:#555;margin:0 0 18px;">Sales teams live in the sales order; payments live on invoices. This module brings the payment picture back to the order.</p>
 <div style="display:flex;flex-wrap:wrap;margin:0 -10px;">
   <div style="flex:1 1 440px;margin:10px;border:1px solid #f1d6d6;background:#fff8f8;border-radius:14px;padding:24px 26px;">
-    <h3 style="font-size:19px;font-weight:700;color:#b33939;margin:0 0 12px;">In standard Odoo 16</h3>
+    <h3 style="font-size:19px;font-weight:700;color:#b33939;margin:0 0 12px;">In standard Odoo 19</h3>
     <ul style="font-size:15px;line-height:1.65;margin:0;padding-left:20px;color:#3a3a42;">
       <li>The order only shows an <b>Invoice Status</b>; &ldquo;Fully Invoiced&rdquo; says nothing about <b>payment</b>.</li>
       <li>To know what is paid you open <b>each invoice</b> one by one.</li>
@@ -37,6 +37,7 @@
       <li><b>Credit notes</b> make the real balance even harder to read.</li>
       <li>You cannot filter or group sales orders by <b>paid / unpaid</b>.</li>
       <li>Registering a payment means leaving the order for the <b>invoice</b>.</li>
+      <li>A payment not yet matched with the bank shows the invoice <b>In Payment</b> with its <b>full residual</b> &ndash; partial or full, you can&rsquo;t tell.</li>
     </ul>
   </div>
   <div style="flex:1 1 440px;margin:10px;border:1px solid #cfe7e7;background:#f4fbfb;border-radius:14px;padding:24px 26px;">
@@ -48,6 +49,7 @@
       <li>Credit notes are <b>netted</b>; a negative amount due shows a customer credit.</li>
       <li><b>Filters</b> and <b>Group By Payment Status</b> in the sales list, with totals.</li>
       <li><b>Register Payment</b> button on the order, and as a list action for several orders.</li>
+      <li>Payments <b>without journal entry</b> are counted as paid, so the order shows exactly what is still due.</li>
     </ul>
   </div>
 </div>
@@ -64,14 +66,14 @@
 
 <!-- ============================== FEATURES ============================== -->
 <h2 style="font-size:28px;font-weight:700;margin:40px 0 6px;color:#2b2b33;">Features</h2>
-<p style="font-size:16px;color:#555;margin:0 0 6px;">Screenshots are taken on Odoo 16 with demo data: seven sales orders for four customers covering every status &ndash; partial payment, two invoices on one order, an open credit note and a fully reversed invoice.</p>
+<p style="font-size:16px;color:#555;margin:0 0 6px;">Screenshots are taken on Odoo 19 with demo data: seven sales orders for four customers covering every status &ndash; partial payment, two invoices on one order, an open credit note and a fully reversed invoice.</p>
 
 <div style="margin:44px 0 0;">
   <div style="font-size:13px;font-weight:700;color:#017E84;letter-spacing:1px;text-transform:uppercase;">Menus</div>
   <h3 style="font-size:23px;font-weight:700;margin:4px 0 8px;">Where to find it</h3>
   <ul style="font-size:15px;line-height:1.75;margin:0;padding-left:20px;color:#3a3a42;">
     <li><b>Sales &rsaquo; Orders &rsaquo; Sales Orders</b> &rsaquo; open a confirmed order &rsaquo; <b>Payment Details</b> tab.</li>
-    <li>Order header: <b>Register Payment</b> button, and a <b>Payments</b> smart button once a payment is reconciled.</li>
+    <li>Order header: <b>Register Payment</b> button; next to <b>Invoices</b> at the top of the form, a <b>Payments</b> smart button once a payment is reconciled.</li>
     <li><b>Sales &rsaquo; Orders &rsaquo; Sales Orders</b> (list): <b>Payment Status</b> and <b>Amount Due</b> columns, filters, <b>Group By &rsaquo; Payment Status</b>.</li>
     <li>List <b>Action &rsaquo; Register Payment</b> for several selected orders.</li>
   </ul>
@@ -94,17 +96,32 @@
 <div style="margin:44px 0 0;">
   <div style="font-size:13px;font-weight:700;color:#017E84;letter-spacing:1px;text-transform:uppercase;">Feature 3</div>
   <h3 style="font-size:23px;font-weight:700;margin:4px 0 8px;">Register Payment from the order</h3>
-  <p style="font-size:15px;line-height:1.6;color:#555;margin:0 0 14px;"><b>Register Payment</b> opens Odoo&rsquo;s own payment wizard on the order&rsquo;s open invoices, pre-filled with the amount due. Journals, payment methods, partial payments, write-offs and grouping work exactly as from the invoice; the order updates as soon as the payment is created.</p>
-  <img src="sops_05_register_payment.png" alt="Register Payment wizard opened from a sales order" style="width:100%;border:1px solid #e1e1e6;border-radius:10px;box-shadow:0 6px 24px rgba(30,30,60,.10);"/>
+  <p style="font-size:15px;line-height:1.6;color:#555;margin:0 0 14px;"><b>Register Payment</b> opens Odoo&rsquo;s own <b>Pay</b> wizard on the order&rsquo;s open invoices, pre-filled with the amount due. Journals, payment methods, partial payments, write-offs and grouping work exactly as from the invoice &ndash; including Odoo&rsquo;s <b>&ldquo;payments in progress&rdquo;</b> warning against paying twice. The order updates as soon as the payment is created.</p>
+  <img src="sops_05_register_payment.png" alt="Pay wizard opened from a sales order" style="width:100%;border:1px solid #e1e1e6;border-radius:10px;box-shadow:0 6px 24px rgba(30,30,60,.10);"/>
 </div>
 
 <div style="margin:44px 0 0;">
   <div style="font-size:13px;font-weight:700;color:#017E84;letter-spacing:1px;text-transform:uppercase;">Feature 4</div>
   <h3 style="font-size:23px;font-weight:700;margin:4px 0 8px;">Credit notes handled the accounting way</h3>
-  <p style="font-size:15px;line-height:1.6;color:#555;margin:0 0 14px;">Posted credit notes are subtracted from the invoiced and due amounts. When an invoice and a credit note are <b>both still open</b>, registering a payment is refused with a clear message, so the customer is never charged the full invoice: apply the outstanding credit on the invoice first.</p>
-  <img src="sops_06_credit_note_control.png" alt="Message asking to reconcile the open credit note before registering a payment" style="width:100%;border:1px solid #e1e1e6;border-radius:10px;box-shadow:0 6px 24px rgba(30,30,60,.10);margin-bottom:22px;"/>
+  <p style="font-size:15px;line-height:1.6;color:#555;margin:0 0 14px;">Posted credit notes are subtracted from the invoiced and due amounts. Since Odoo 17 a credit note made with <b>Reverse</b> is reconciled with its invoice automatically, so the order simply shows the reduced amount due. A credit note entered <b>by hand</b> stays open: while an invoice and a credit note are <b>both open</b>, registering a payment is refused with a clear message, so the customer is never charged the full invoice. Apply the outstanding credit on the invoice first.</p>
+  <img src="sops_06_credit_note_control.png" alt="Message asking to reconcile the open manual credit note before registering a payment" style="width:100%;border:1px solid #e1e1e6;border-radius:10px;box-shadow:0 6px 24px rgba(30,30,60,.10);margin-bottom:22px;"/>
   <img src="sops_04_credited.png" alt="Fully Credited ribbon on an order whose invoice was reversed" style="width:100%;border:1px solid #e1e1e6;border-radius:10px;box-shadow:0 6px 24px rgba(30,30,60,.10);"/>
-  <div style="font-size:13px;color:#777;margin:6px 0 0;">An invoice fully reversed by its credit note: the order shows <b>Fully Credited</b>, nothing invoiced, nothing due.</div>
+  <div style="font-size:13px;color:#777;margin:6px 0 0;">An invoice fully reversed with <b>Reverse and Create Invoice</b>: the order shows <b>Fully Credited</b>, nothing invoiced, nothing due.</div>
+</div>
+
+<div style="margin:44px 0 0;">
+  <div style="font-size:13px;font-weight:700;color:#017E84;letter-spacing:1px;text-transform:uppercase;">Since Odoo 18</div>
+  <h3 style="font-size:23px;font-weight:700;margin:4px 0 8px;">Payments without journal entry, counted right</h3>
+  <p style="font-size:15px;line-height:1.6;color:#555;margin:0 0 14px;">Since Odoo 18 a payment can be registered <b>without a journal entry</b> (typical in Enterprise when the bank journal has no outstanding account): the invoice turns <b>In Payment</b> but keeps its full residual until the bank statement is reconciled. The module counts those payments as paid on the order, spread over the invoices they were registered for, oldest due date first.</p>
+  <table style="width:100%;border-collapse:collapse;font-size:15px;">
+    <thead><tr style="background:#714B67;color:#fff;"><th style="text-align:left;padding:10px 14px;">Invoice 1,000 &middot; payment 400 without journal entry</th><th style="text-align:right;padding:10px 14px;">Invoice shows</th><th style="text-align:right;padding:10px 14px;">Order shows</th></tr></thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;">Payment status</td><td style="padding:10px 14px;text-align:right;">In Payment</td><td style="padding:10px 14px;text-align:right;"><b>Partially Paid</b></td></tr>
+      <tr style="border-bottom:1px solid #eee;background:#fafafa;"><td style="padding:10px 14px;">Amount due</td><td style="padding:10px 14px;text-align:right;">1,000.00</td><td style="padding:10px 14px;text-align:right;"><b>600.00</b></td></tr>
+      <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;">After paying the remaining 600</td><td style="padding:10px 14px;text-align:right;">In Payment</td><td style="padding:10px 14px;text-align:right;"><b>In Payment</b>, 0.00 due</td></tr>
+    </tbody>
+  </table>
+  <div style="background:#f4fbfb;border-left:4px solid #017E84;border-radius:8px;padding:16px 20px;font-size:15px;line-height:1.6;margin-top:14px;"><b>Grouped payment:</b> 200 registered for two orders of 100 and 250 &rArr; first order <b>In Payment</b>, 0 due; second order <b>Partially Paid</b>, 150 due. Cancel a payment and the order goes back to what is really due.</div>
 </div>
 
 <div style="margin:44px 0 0;">
@@ -130,7 +147,7 @@
   <div style="margin-bottom:6px;"><span style="display:inline-block;min-width:150px;text-align:center;background:#f3f4f6;color:#555;border-radius:10px;padding:1px 8px;font-size:13px;margin-right:10px;">Not Invoiced</span> no posted invoice or credit note yet</div>
   <div style="margin-bottom:6px;"><span style="display:inline-block;min-width:150px;text-align:center;background:#fee2e2;color:#b91c1c;border-radius:10px;padding:1px 8px;font-size:13px;margin-right:10px;">Not Paid</span> amount due &ge; total invoiced</div>
   <div style="margin-bottom:6px;"><span style="display:inline-block;min-width:150px;text-align:center;background:#fef3c7;color:#b45309;border-radius:10px;padding:1px 8px;font-size:13px;margin-right:10px;">Partially Paid</span> something paid, something still due</div>
-  <div style="margin-bottom:6px;"><span style="display:inline-block;min-width:150px;text-align:center;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:1px 8px;font-size:13px;margin-right:10px;">In Payment</span> nothing due, payment not yet matched with the bank statement (Enterprise)</div>
+  <div style="margin-bottom:6px;"><span style="display:inline-block;min-width:150px;text-align:center;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:1px 8px;font-size:13px;margin-right:10px;">In Payment</span> nothing due, a payment not yet matched with the bank statement (Enterprise), with or without journal entry</div>
   <div style="margin-bottom:6px;"><span style="display:inline-block;min-width:150px;text-align:center;background:#d1fae5;color:#047857;border-radius:10px;padding:1px 8px;font-size:13px;margin-right:10px;">Paid</span> nothing due</div>
   <div style="margin-bottom:6px;"><span style="display:inline-block;min-width:150px;text-align:center;background:#f6f4f6;color:#714B67;border-radius:10px;padding:1px 8px;font-size:13px;margin-right:10px;">Fully Credited</span> invoices fully cancelled by credit notes</div>
 </div>
@@ -140,13 +157,16 @@
 <h2 style="font-size:28px;font-weight:700;margin:44px 0 6px;color:#2b2b33;">Built for real-world corner cases</h2>
 <p style="font-size:16px;color:#555;margin:0 0 18px;">Each of these is covered by an automated test.</p>
 <div style="display:flex;flex-wrap:wrap;margin:0 -8px;font-size:15px;line-height:1.55;">
-  <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Draft and cancelled invoices</b><br/><span style="color:#555;">Ignored. Only posted documents count, so a draft never shows as &ldquo;Not Paid&rdquo;.</span></div>
+  <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Draft and cancelled invoices, locked orders</b><br/><span style="color:#555;">Only posted documents count, so a draft never shows as &ldquo;Not Paid&rdquo;. Locked orders keep their Payment Details tab.</span></div>
   <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Down payments</b><br/><span style="color:#555;">The down-payment invoice and the final invoice (with its deduction) add up to the order total.</span></div>
-  <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Payment unreconciled or reset to draft</b><br/><span style="color:#555;">The order goes back from Partially Paid to Not Paid immediately.</span></div>
+  <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Payment unreconciled or cancelled</b><br/><span style="color:#555;">The order goes back from Partially Paid to Not Paid immediately. In Odoo 19 a payment reset to draft stays matched with its invoice, and the order shows the same as the invoice.</span></div>
+  <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Reverse vs manual credit notes</b><br/><span style="color:#555;">Reversed credit notes (auto-reconciled since Odoo 17) and hand-made ones give the same net balance; only an open one blocks registration.</span></div>
+  <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Reverse and Create Invoice</b><br/><span style="color:#555;">The new draft invoice Odoo opens is ignored until it is posted.</span></div>
   <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Credit note after payment</b><br/><span style="color:#555;">Amount Due turns negative (customer credit) and Register Payment targets the credit note only.</span></div>
   <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Foreign currency orders</b><br/><span style="color:#555;">Amounts read in the document currency, exact to its decimals (tested with a 3-decimal currency and a payment in company currency).</span></div>
   <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Invoice in another currency than the order</b><br/><span style="color:#555;">Converted from its company-currency amounts at the invoice date.</span></div>
   <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Community vs Enterprise</b><br/><span style="color:#555;">Enterprise&rsquo;s &ldquo;In Payment&rdquo; state is mirrored on the order; Community goes straight to Paid.</span></div>
+  <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Payments without journal entry</b><br/><span style="color:#555;">Counted as paid, spread oldest due date first; cancelling one restores the amount due.</span></div>
   <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Several orders at once</b><br/><span style="color:#555;">List action pays the open invoices of all selected orders, with optional grouped payment.</span></div>
   <div style="flex:1 1 320px;margin:8px;padding:16px 18px;border:1px solid #e8e8ee;border-radius:12px;"><b>Large databases</b><br/><span style="color:#555;">Stored fields recomputed only when a linked invoice changes; searchable and groupable without slow queries.</span></div>
 </div>
@@ -167,13 +187,13 @@
 <h2 style="font-size:28px;font-weight:700;margin:44px 0 6px;color:#2b2b33;">Technical details</h2>
 <table style="width:100%;border-collapse:collapse;font-size:15px;">
   <tbody>
-    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;width:240px;color:#777;">Odoo version</td><td style="padding:10px 14px;">16.0, Community and Enterprise</td></tr>
+    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;width:240px;color:#777;">Odoo version</td><td style="padding:10px 14px;">19.0, Community and Enterprise</td></tr>
     <tr style="border-bottom:1px solid #eee;background:#fafafa;"><td style="padding:10px 14px;width:240px;color:#777;">Depends on</td><td style="padding:10px 14px;"><code>sale</code>, <code>account</code></td></tr>
     <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;width:240px;color:#777;">Python dependency</td><td style="padding:10px 14px;">None</td></tr>
     <tr style="border-bottom:1px solid #eee;background:#fafafa;"><td style="padding:10px 14px;width:240px;color:#777;">Menus</td><td style="padding:10px 14px;">None added; extends Sales &rsaquo; Orders (form, list, search) and adds Action &rsaquo; Register Payment</td></tr>
     <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;width:240px;color:#777;">Settings</td><td style="padding:10px 14px;">None &ndash; works after install; existing orders are computed at install</td></tr>
     <tr style="border-bottom:1px solid #eee;background:#fafafa;"><td style="padding:10px 14px;width:240px;color:#777;">Models</td><td style="padding:10px 14px;">Extends <code>sale.order</code> with stored computed fields (status, invoiced, paid, due, due in company currency, paid %); no new models, no change to invoices or payments</td></tr>
-    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;width:240px;color:#777;">Automated tests</td><td style="padding:10px 14px;">16 <code>TransactionCase</code> tests: status transitions, partial and full payments, In Payment, unreconcile, multi-invoice, down payment, multi-order payment, credit notes and reversal, 3-decimal foreign currency, access rights, search/group, Arabic translation</td></tr>
+    <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;width:240px;color:#777;">Automated tests</td><td style="padding:10px 14px;">20 <code>TransactionCase</code> tests: status transitions, partial and full payments, In Payment, payments without journal entry (partial, grouped, cancelled), draft / cancel / unreconcile, multi-invoice, down payment, multi-order payment, reversed and manual credit notes, full reversal, 3-decimal foreign currency, access rights, search/group, Arabic translation</td></tr>
     <tr style="border-bottom:1px solid #eee;background:#fafafa;"><td style="padding:10px 14px;width:240px;color:#777;">Translations</td><td style="padding:10px 14px;">Arabic (<code>ar_001</code>), RTL layout</td></tr>
     <tr style="border-bottom:1px solid #eee;"><td style="padding:10px 14px;width:240px;color:#777;">License</td><td style="padding:10px 14px;">LGPL-3</td></tr>
   </tbody>
